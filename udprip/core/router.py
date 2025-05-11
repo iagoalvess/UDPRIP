@@ -1,0 +1,81 @@
+import time
+import threading
+from udprip.core.routing_table import RoutingTable
+from udprip.network.udp_socket import UDPSocket
+from udprip.core.message_handler import MessageHandler
+from udprip.utils.helpers import current_time, has_expired
+
+
+class Router:
+    def __init__(self, address, update_period, port=55151):
+        self.address = address
+        self.update_period = update_period
+        self.running = True
+
+        self.neighbors = {}
+        self.last_update = {}
+        self.received_update_from = {}
+        self.routing_table = RoutingTable(self.address)
+        self.socket = UDPSocket(self.address, port)
+        self.lock = threading.Lock()
+
+        self.handler = MessageHandler(self)
+
+    def add_neighbor(self, ip, weight):
+        with self.lock:
+            self.neighbors[ip] = weight
+            self.routing_table.add_direct_route(ip, weight)
+
+    def remove_neighbor(self, ip):
+        with self.lock:
+            if ip in self.neighbors:
+                del self.neighbors[ip]
+            self.routing_table.remove_routes_from(ip)
+
+    def send_update(self):
+        with self.lock:
+            for neighbor in self.neighbors:
+                update_msg = self.routing_table.build_update_message(
+                    self.address, neighbor, self.neighbors[neighbor]
+                )
+                self.socket.send_json(update_msg, neighbor)
+
+    def receive_loop(self):
+        while self.running:
+            msg, sender = self.socket.receive_json()
+            if msg:
+                with self.lock:
+                    self.handler.handle_message(msg)
+
+    def periodic_update_loop(self):
+        while self.running:
+            self.send_update()
+            time.sleep(self.update_period)
+            self._expire_routes()
+
+    def _expire_routes(self):
+        expired = [
+            ip for ip, t in self.last_update.items()
+            if has_expired(t, self.update_period)
+        ]
+        for ip in expired:
+            self.routing_table.remove_routes_from(ip)
+
+    def send_message(self, dest_ip, message):
+        self.socket.send_json(message, dest_ip)
+
+    def update_last_heard(self, ip):
+        self.last_update[ip] = current_time()
+
+    def run(self):
+        recv_thread = threading.Thread(target=self.receive_loop, daemon=True)
+        update_thread = threading.Thread(target=self.periodic_update_loop, daemon=True)
+        recv_thread.start()
+        update_thread.start()
+
+        try:
+            while self.running:
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            self.running = False
+            print("\nRouter shutting down.")

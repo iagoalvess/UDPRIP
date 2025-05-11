@@ -1,0 +1,52 @@
+{
+ "version": "0.2.0",
+ "configurations": [
+  {
+   "name": "Router R1",
+   "type": "debugpy",
+   "request": "launch",
+   "program": "${workspaceFolder}/main.py",
+   "args": [
+    "127.0.0.1",
+    "5",
+    "cli/config/startup_r1.txt"
+   ],
+   "console": "integratedTerminal"
+  },
+  {
+   "name": "Router R2",
+   "type": "debugpy",
+   "request": "launch",
+   "program": "${workspaceFolder}/main.py",
+   "args": [
+    "127.0.0.2",
+    "5",
+    "cli/config/startup_r2.txt"
+   ],
+   "console": "integratedTerminal"
+  },
+  {
+   "name": "Router R3",
+   "type": "debugpy",
+   "request": "launch",
+   "program": "${workspaceFolder}/main.py",
+   "args": [
+    "127.0.0.3",
+    "5",
+    "cli/config/startup_r3.txt"
+   ],
+   "console": "integratedTerminal"
+  }
+ ],
+ "compounds": [
+  {
+   "name": "Start All Routers",
+   "configurations": [
+    "Router R1",
+    "Router R2",
+    "Router R3"
+   ],
+   "stopAll": true
+  }
+ ]
+}
