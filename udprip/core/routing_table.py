@@ -1,39 +1,75 @@
+import random
+
 class RoutingTable:
     def __init__(self, self_ip):
         self.self_ip = self_ip
-        self.routes = {}  # exemplo: {'127.0.1.3': ('127.0.1.2', 20, '127.0.1.2')}
+        self.routes = {}
 
     def add_direct_route(self, neighbor_ip, weight):
-        self.routes[neighbor_ip] = (neighbor_ip, weight, neighbor_ip)
+        if neighbor_ip in self.routes:
+            current_entry = self.routes[neighbor_ip]
+            if current_entry["cost"] > weight:
+                self.routes[neighbor_ip] = {
+                    "cost": weight,
+                    "next_hops": [(neighbor_ip, neighbor_ip)],
+                }
+            elif current_entry["cost"] == weight:
+                if (neighbor_ip, neighbor_ip) not in current_entry["next_hops"]:
+                    current_entry["next_hops"].append((neighbor_ip, neighbor_ip))
+        else:
+            self.routes[neighbor_ip] = {
+                "cost": weight,
+                "next_hops": [(neighbor_ip, neighbor_ip)],
+            }
 
     def update_route(self, destination, next_hop, cost, learned_from):
-        current = self.routes.get(destination)
-        if (
-            current is None
-            or cost < current[1]
-            or (
-                cost == current[1] and next_hop < current[0]
-            )  # desempate
-        ):
-            self.routes[destination] = (next_hop, cost, learned_from)
+        if destination == self.self_ip:
+            return
+        current_entry = self.routes.get(destination)
+        new_cost = cost
+
+        if current_entry is None:
+            self.routes[destination] = {
+                "cost": new_cost,
+                "next_hops": [(next_hop, learned_from)],
+            }
+        else:
+            current_cost = current_entry["cost"]
+            if new_cost < current_cost:
+                self.routes[destination] = {
+                    "cost": new_cost,
+                    "next_hops": [(next_hop, learned_from)],
+                }
+            elif new_cost == current_cost:
+                if (next_hop, learned_from) not in current_entry["next_hops"]:
+                    current_entry["next_hops"].append((next_hop, learned_from))
 
     def remove_routes_from(self, neighbor_ip):
-        to_remove = [dest for dest, (_, _, src) in self.routes.items() if src == neighbor_ip]
-        for dest in to_remove:
-            del self.routes[dest]
-            
+        for dest, entry in list(self.routes.items()):
+            entry['next_hops'] = [
+                (nh, lf) for (nh, lf) in entry['next_hops']
+                if lf != neighbor_ip
+            ]
+            if not entry['next_hops']:
+                del self.routes[dest]
+
     def remove_routes_without_list_neighbor(self, neighbor_id, list_neighbor):
-        to_remove = [dest for dest, (_, _, src) in self.routes.items() if src == neighbor_id and dest not in list_neighbor]
-        for dest in to_remove:
-            del self.routes[dest]
-    
+        for dest, entry in list(self.routes.items()):
+            entry['next_hops'] = [
+                (nh, lf) for (nh, lf) in entry['next_hops']
+                if not (lf == neighbor_id and dest not in list_neighbor)
+            ]
+            if not entry['next_hops']:
+                del self.routes[dest]
+
     def build_update_message(self, source, dest_ip, link_weight):
         distances = {}
-        for dest, (next_hop, total_cost, learned_from) in self.routes.items():
-            if learned_from == dest_ip:
+        for dest, entry in self.routes.items():
+            learned_froms = [lf for (_, lf) in entry["next_hops"]]
+            if dest_ip in learned_froms:
                 continue
-            distances[dest] = total_cost
-        distances[self.self_ip] = source.neighbors[dest_ip]  # modificado por mim
+            distances[dest] = entry["cost"]
+        distances[self.self_ip] = link_weight
         return {
             "type": "update",
             "source": source.address,
@@ -42,8 +78,10 @@ class RoutingTable:
         }
 
     def get_next_hop(self, destination):
-        route = self.routes.get(destination)
-        return route[0] if route else None
+        entry = self.routes.get(destination)
+        if entry and entry["next_hops"]:
+            return random.choice(entry["next_hops"])[0]
+        return None
 
     def get_distance(self, destination):
         route = self.routes.get(destination)
@@ -54,5 +92,6 @@ class RoutingTable:
 
     def __str__(self):
         return "\n".join(
-            f"{dst} -> {nxt} (cost={c})" for dst, (nxt, c, _) in self.routes.items()
+            f"{dest} -> cost={entry['cost']}, next_hops={entry['next_hops']}" 
+            for dest, entry in self.routes.items()
         )

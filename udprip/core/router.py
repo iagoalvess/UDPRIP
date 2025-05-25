@@ -6,6 +6,7 @@ from udprip.core.message_handler import MessageHandler
 from udprip.utils.helpers import current_time, has_expired
 import os
 
+
 class Router:
     def __init__(self, address, update_period, port=55151):
         self.address = address
@@ -24,40 +25,44 @@ class Router:
 
     def add_neighbor(self, ip, weight):
         with self.lock:
-            #print(f'--> Add neighbor - ip:{ip} - weight: {weight}')
+            # print(f'--> Add neighbor - ip:{ip} - weight: {weight}')
             self.neighbors[ip] = weight
-            #self.routing_table.add_direct_route(ip, weight) // adicionado por mim, errado porque deve se mandar apenas a tabela de roteadores
+            # self.routing_table.add_direct_route(ip, weight) // adicionado por mim, errado porque deve se mandar apenas a tabela de roteadores
 
     def remove_neighbor(self, ip):
         with self.lock:
             if ip in self.neighbors:
-                #print(f'--> Del neighbor - ip:{ip} - weight: {self.neighbors[ip]}')
+                # print(f'--> Del neighbor - ip:{ip} - weight: {self.neighbors[ip]}')
                 del self.neighbors[ip]
             self.routing_table.remove_routes_from(ip)
 
     def limpar_tela(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
+        os.system("cls" if os.name == "nt" else "clear")
 
     def send_update(self):
-        self.limpar_tela() 
-        print(f'Atualização: {self.updateHeighb}')
-        print(f'===================Vizinhos=============================, {self.address}')
+        self.limpar_tela()
+        print(f"Atualização: {self.updateHeighb}")
+        print(
+            f"===================Vizinhos=============================, {self.address}"
+        )
         for ip, weight in self.neighbors.items():
-            print(f'IP[{ip}]: weight:{weight}')
-        
-        self.updateHeighb = self.updateHeighb + 1     
-        print(f'===================Roteadores Aprendidos=============================, {self.address}')
+            print(f"IP[{ip}]: weight:{weight}")
+
+        self.updateHeighb = self.updateHeighb + 1
+        print(
+            f"===================Roteadores Aprendidos=============================, {self.address}"
+        )
         self.print()
-        print(f'\n')
-   
+        print(f"\n")
+
         with self.lock:
-            
+
             for ip, weight in self.neighbors.items():
-               
+
                 update_msg = self.routing_table.build_update_message(
                     self, ip, self.neighbors[ip]
                 )
-               
+
                 self.socket.send_json(update_msg, ip)
 
     def receive_loop(self):
@@ -75,19 +80,18 @@ class Router:
 
     def _expire_routes(self):
         try:
-           
+
             for ip, data in self.routing_table.routes.items():
-                if ip != data[2]: 
+                if ip != data[2]:
                     continue
                 if ip not in self.received_update_from:
                     if self.last_update[ip] != None:
                         self.last_update[ip] = self.last_update[ip] - 1
-                
+
             expired = [
-                ip for ip, t in self.last_update.items()
-                if self.last_update[ip] < -3
+                ip for ip, t in self.last_update.items() if self.last_update[ip] < -3
             ]
-            
+
             for ip in expired:
                 del self.last_update[ip]
                 self.routing_table.remove_routes_from(ip)
@@ -99,26 +103,29 @@ class Router:
         self.socket.send_json(message, dest_ip)
 
     def update_last_heard(self, dest_ip):
-        self.last_update[ip] = 0 if self.last_update[ip] == None else self.last_update[ip] + 1
-        #self.last_update[ip] = current_time()
-    
+        self.last_update[ip] = (
+            0 if self.last_update[ip] == None else self.last_update[ip] + 1
+        )
+        # self.last_update[ip] = current_time()
+
     def send_trace(self, dest_ip):
-       
+
         message = {
             "type": "trace",
             "source": self.address,
-            "destination":  dest_ip,
-            "routers": [self.address]
+            "destination": dest_ip,
+            "routers": [self.address],
         }
 
-        if self.routing_table.routes.get(dest_ip, 'undefined') != 'undefined':
-            next_dest = self.routing_table.routes[dest_ip][2]
-            self.send_message(next_dest, message)
+        next_hop = self.routing_table.get_next_hop(
+            dest_ip
+        )
+        if next_hop:
+            self.send_message(next_hop, message)
         else:
-            print(f'O destino IP[{dest_ip}] não pode ser encontrado')
+            print(f"O destino IP[{dest_ip}] não pode ser encontrado")
             return
-       
-    
+
     def input_comands(self):
         while True:
             try:
@@ -129,24 +136,21 @@ class Router:
                 weight = None
                 if len(comand) > 2:
                     weight = int(comand[2])
-                
-                if typeComand == 'add' and weight != None:
+
+                if typeComand == "add" and weight != None:
                     self.add_neighbor(ip, weight)
-                elif typeComand == 'del':
+                elif typeComand == "del":
                     self.remove_neighbor(ip)
-                elif typeComand == 'trace':
+                elif typeComand == "trace":
                     self.send_trace(ip)
                 else:
-                    print('Comando ou formato incorreto')
+                    print("Comando ou formato incorreto")
             except:
-                print('Erro no processamento do comando')
-            
+                print("Erro no processamento do comando")
+
     def print(self):
         for chave, valor in self.routing_table.routes.items():
-            print(f'IP[{chave}] - data: {valor}')
-            
-                
-        
+            print(f"IP[{chave}] - data: {valor}")
 
     def run(self):
         recv_thread = threading.Thread(target=self.receive_loop, daemon=True)
