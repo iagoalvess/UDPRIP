@@ -18,22 +18,25 @@ class RoutingTable:
             self.routes[destination] = (next_hop, cost, learned_from)
 
     def remove_routes_from(self, neighbor_ip):
-        to_remove = [
-            dest for dest, (_, _, src) in self.routes.items() if src == neighbor_ip
-        ]
+        to_remove = [dest for dest, (_, _, src) in self.routes.items() if src == neighbor_ip]
         for dest in to_remove:
             del self.routes[dest]
-
-    def build_update_message(self, source_ip, dest_ip, link_weight):
+            
+    def remove_routes_without_list_neighbor(self, neighbor_id, list_neighbor):
+        to_remove = [dest for dest, (_, _, src) in self.routes.items() if src == neighbor_id and dest not in list_neighbor]
+        for dest in to_remove:
+            del self.routes[dest]
+    
+    def build_update_message(self, source, dest_ip, link_weight):
         distances = {}
         for dest, (next_hop, total_cost, learned_from) in self.routes.items():
             if learned_from == dest_ip:
                 continue
             distances[dest] = total_cost
-        distances[self.self_ip] = 0  # inclui a si mesmo com distância 0
+        distances[self.self_ip] = source.neighbors[dest_ip]  # modificado por mim
         return {
             "type": "update",
-            "source": source_ip,
+            "source": source.address,
             "destination": dest_ip,
             "distances": distances,
         }
