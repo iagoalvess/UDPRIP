@@ -13,6 +13,8 @@ class MessageHandler:
             self.handle_update(message)
         elif msg_type == "trace":
             self.handle_trace(message)
+        elif msg_type == "absent":
+             self.handle_data(message)
 
     def handle_data(self, message):
         dest = message["destination"]
@@ -23,26 +25,26 @@ class MessageHandler:
             if next_hop:
                 self.router.send_message(next_hop, message)
             else:
-                print(f"Rota não encontrada para {dest}")
+                self.router.send_message(message["source"], self.create_message_absent_destination(self.router.address, message))
     
     def handle_update(self, message):
         source = message["source"]
         distances = message["distances"]
         link_cost = self.router.neighbors.get(source)
         
-        self.router.last_update[source] = 0#adicionado pro mim
+        self.router.last_update[source] = current_time()
         
         if link_cost is None:
             link_cost = message["distances"][source]
        
         for dest, cost in distances.items():
-            new_cost = link_cost #adicionado por mim
+            new_cost = link_cost 
             if dest != source:
-                new_cost = cost + link_cost #adicionado por mim
-            if dest == self.router.address:
+                new_cost = cost + link_cost
+            if dest == self.router.address or new_cost > 50:
                 continue
             self.router.routing_table.update_route(dest, source, new_cost, source)
-      
+        
         self.router.routing_table.remove_routes_without_list_neighbor(source, [ip for ip, weight in distances.items()])
         
         self.router.received_update_from.append(source)
@@ -63,6 +65,14 @@ class MessageHandler:
             if next_hop:
                 self.router.send_message(next_hop, message)
             else:
-                print(
-                    f"Não foi possível encaminhar TRACE para {message['destination']}"
-                )
+                self.router.send_message(message["source"], self.create_message_absent_destination(self.router.address, message))
+
+    
+    def create_message_absent_destination(currentRouterIP,message):
+           return {
+                "type": "absent",
+                "source":  currentRouterIP,
+                "destination": message["source"],
+                "payload": json.dumps(message),
+            }
+        

@@ -66,10 +66,12 @@ class RoutingTable:
         distances = {}
         for dest, entry in self.routes.items():
             learned_froms = [lf for (_, lf) in entry["next_hops"]]
+          
             if dest_ip in learned_froms:
                 continue
             distances[dest] = entry["cost"]
         distances[self.self_ip] = link_weight
+       
         return {
             "type": "update",
             "source": source.address,

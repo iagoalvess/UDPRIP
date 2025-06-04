@@ -6,8 +6,7 @@ from udprip.core.message_handler import MessageHandler
 from udprip.utils.helpers import current_time, has_expired
 import os
 
-
-class Router:
+class Gateway:
     def __init__(self, address, update_period, port=55151):
         self.address = address
         self.update_period = update_period
@@ -25,14 +24,12 @@ class Router:
 
     def add_neighbor(self, ip, weight):
         with self.lock:
-            # print(f'--> Add neighbor - ip:{ip} - weight: {weight}')
             self.neighbors[ip] = weight
-            # self.routing_table.add_direct_route(ip, weight) // adicionado por mim, errado porque deve se mandar apenas a tabela de roteadores
+           
 
     def remove_neighbor(self, ip):
         with self.lock:
             if ip in self.neighbors:
-                # print(f'--> Del neighbor - ip:{ip} - weight: {self.neighbors[ip]}')
                 del self.neighbors[ip]
             self.routing_table.remove_routes_from(ip)
 
@@ -80,18 +77,16 @@ class Router:
 
     def _expire_routes(self):
         try:
-
+            expired = []
             for ip, data in self.routing_table.routes.items():
-                if ip != data[2]:
+               
+                if ip != data['next_hops'][0][0]:
                     continue
+               
                 if ip not in self.received_update_from:
-                    if self.last_update[ip] != None:
-                        self.last_update[ip] = self.last_update[ip] - 1
-
-            expired = [
-                ip for ip, t in self.last_update.items() if self.last_update[ip] < -3
-            ]
-
+                    if self.last_update[ip] != None and has_expired(self.last_update[ip], self.update_period, 4):
+                        expired.append(ip)
+          
             for ip in expired:
                 del self.last_update[ip]
                 self.routing_table.remove_routes_from(ip)
@@ -101,12 +96,6 @@ class Router:
 
     def send_message(self, dest_ip, message):
         self.socket.send_json(message, dest_ip)
-
-    def update_last_heard(self, dest_ip):
-        self.last_update[ip] = (
-            0 if self.last_update[ip] == None else self.last_update[ip] + 1
-        )
-        # self.last_update[ip] = current_time()
 
     def send_trace(self, dest_ip):
 
@@ -128,25 +117,26 @@ class Router:
 
     def input_comands(self):
         while True:
-            try:
                 comand = input().split(" ")
                 typeComand = comand[0]
-                ip = comand[1]
+                ip = None 
 
                 weight = None
+                if len(comand) > 1:
+                    ip = comand[1]
                 if len(comand) > 2:
                     weight = int(comand[2])
-
-                if typeComand == "add" and weight != None:
+               
+                if typeComand == "add" and ip != None and weight != None:
                     self.add_neighbor(ip, weight)
-                elif typeComand == "del":
+                elif typeComand == "del"  and ip != None:
                     self.remove_neighbor(ip)
-                elif typeComand == "trace":
+                elif typeComand == "trace"  and ip != None:
                     self.send_trace(ip)
+                elif typeComand == "quit" and ip == None:
+                    os._exit(0)
                 else:
                     print("Comando ou formato incorreto")
-            except:
-                print("Erro no processamento do comando")
 
     def print(self):
         for chave, valor in self.routing_table.routes.items():
