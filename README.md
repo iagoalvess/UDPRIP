@@ -50,6 +50,10 @@ Quando múltiplos caminhos com custo mínimo estão disponíveis para um destino
 ### 4. Simulação de Trajeto (Trace)
 Comando `trace <ip>` permite visualizar o caminho até um destino com base na tabela de roteamento, útil para validar o funcionamento e a convergência da rede.
 
+### 5. Simulação de Trajeto (Trace)
+O custo para se chegar a um roteador não pode passar de **50**, visto que, baseando-se no livro apresentado pelo professor, foi necessário adotar essa medida para resolver o caso em que um roteador falha e seu custo é incrementado cada vez mais nos roteadores que recebem atualizações com o caminho para ele. 
+
+
 ---
 
 ## Interface de Comando
