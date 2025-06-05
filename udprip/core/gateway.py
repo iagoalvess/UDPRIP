@@ -37,21 +37,21 @@ class Gateway:
         os.system("cls" if os.name == "nt" else "clear")
 
     def send_update(self):
-        self.limpar_tela()
-        print(f"Atualização: {self.updateHeighb}")
+        
+        print(f"\n")
+        print(f"Atualização: {self.updateHeighb} - Roteador: {self.address}")
         print(
-            f"===================Vizinhos=============================, {self.address}"
+            f"===================Vizinhos============================="
         )
         for ip, weight in self.neighbors.items():
             print(f"IP[{ip}]: weight:{weight}")
-
-        self.updateHeighb = self.updateHeighb + 1
         print(
-            f"===================Roteadores Aprendidos=============================, {self.address}"
+            f"===================Roteadores Aprendidos================"
         )
         self.print()
         print(f"\n")
-
+        
+        self.updateHeighb = self.updateHeighb + 1
         with self.lock:
 
             for ip, weight in self.neighbors.items():

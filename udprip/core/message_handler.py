@@ -8,18 +8,19 @@ class MessageHandler:
     def handle_message(self, message):
         msg_type = message.get("type")
         if msg_type == "data":
-            self.handle_data(message)
+            self.handle_data(message, True)
         elif msg_type == "update":
             self.handle_update(message)
         elif msg_type == "trace":
             self.handle_trace(message)
         elif msg_type == "absent":
-             self.handle_data(message)
+             self.handle_data(message, False)
 
-    def handle_data(self, message):
+    def handle_data(self, message, send_confirmation):
         dest = message["destination"]
         if dest == self.router.address:
-            print(f"Mensagem recebida: {message['payload']}")
+            if send_confirmation:
+                print(f"Mensagem recebida: {message['payload']}")
         else:
             next_hop = self.router.routing_table.get_next_hop(dest)
             if next_hop:
