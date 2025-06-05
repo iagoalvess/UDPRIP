@@ -32,8 +32,8 @@ O script principal `router.py` inicia o roteador, passando o IP, período de atu
 ### 2. Roteamento Dinâmico (RIP)
 - **Atualizações periódicas**.
       - As atualizações periódicas acontecem a cada 4 * período de tempo, em que é enviado mensagens no formato json para todos os vizinhos(roteadores adicionados com add). Aqui nós nos       beneficiamos do dicionário do python, que possui uma grande similaridade e fácil conversão para json.
-   - Dado um roteador, o conteúdo da mensagem vem da tabela de roteamento dele, que possui os caminhos para roteadores que ele aprendeu a partir de mensagens de atualizações periódicas       de seus vizinhos que o adicionaram com o comando add.
-   - Split horizon: rotas não são anunciadas de volta ao remetente, isso é feito excluindo os caminhos que foram aprendidos por meio do roteador de destino da mensagem de atualização.
+      - Dado um roteador, o conteúdo da mensagem vem da tabela de roteamento dele, que possui os caminhos para roteadores que ele aprendeu a partir de mensagens de atualizações periódicas de seus vizinhos que o adicionaram com o comando add.
+      - Split horizon: rotas não são anunciadas de volta ao remetente, isso é feito excluindo os caminhos que foram aprendidos por meio do roteador de destino da mensagem de atualização.
       Tabela de roteamento dinâmica, com custo e próximo salto.
 
 ### 3. Estruturas de Dados de Gerenciamento de Caminhos
