@@ -9,16 +9,6 @@
 ## Resumo do Projeto
 O segundo trabalho prático da disciplina de Redes teve como objetivo implementar um sistema de roteamento dinâmico baseado no protocolo RIP sobre UDP. O projeto simula um ambiente de rede com múltiplos roteadores permitindo a troca de mensagens de atualização de rotas. Toda a estrutura foi desenvolvida em Python, com foco em simular o comportamento de protocolos reais de roteamento.
 
-A implementação foca nos seguintes pilares:
-* Comunicação entre roteadores usando UDP.
-* Algoritmo de roteamento RIP com split horizon.
-* Atualização periódica das rotas.
-* Detecção de falhas e expiração de rotas.
-* Suporte a múltiplos caminhos com o mesmo custo (load balancing).
-* Interface de linha de comando para simulação em tempo real.
-
-Cada roteador executa em instâncias independentes e se comunica via mensagens UDP, trocando periodicamente suas tabelas de roteamento com os vizinhos.
-
 ---
 
 ## Arquitetura do Sistema
@@ -35,24 +25,31 @@ O script principal `router.py` inicia o roteador, passando o IP, período de atu
 ## Funcionalidades Principais
 
 ### 1. Gerenciamento de Vizinhos
-* Adicionar vizinhos: com IP e custo.
-* Remover vizinhos: via comando.
-* Detectar vizinhos inativos: usando contadores de tempo.
+- Adicionar vizinhos: com IP e custo.
+- Remover vizinhos: via comando.
+- Detectar vizinhos inativos: usando contadores de tempo.
 
 ### 2. Roteamento Dinâmico (RIP)
-* Atualizações periódicas.
-* Split horizon: rotas não são anunciadas de volta ao remetente.
-* Tabela de roteamento dinâmica, com custo e próximo(s) salto(s).
+- **Atualizações periódicas**.
+      - As atualizações periódicas acontecem a cada 4 * período de tempo, em que é enviado mensagens no formato json para todos os vizinhos(roteadores adicionados com add). Aqui nós nos       beneficiamos do dicionário do python, que possui uma grande similaridade e fácil conversão para json.
+   - Dado um roteador, o conteúdo da mensagem vem da tabela de roteamento dele, que possui os caminhos para roteadores que ele aprendeu a partir de mensagens de atualizações periódicas       de seus vizinhos que o adicionaram com o comando add.
+   - Split horizon: rotas não são anunciadas de volta ao remetente, isso é feito excluindo os caminhos que foram aprendidos por meio do roteador de destino da mensagem de atualização.
+      Tabela de roteamento dinâmica, com custo e próximo salto.
 
-### 3. Balanceamento de Carga (Ponto Extra)
+### 3. Estruturas de Dados de Gerenciamento de Caminhos
+Para tal, utilizamos a lógica de dicionários do Python. Assim, na classe `"RoutingTable"`, instanciada para cada roteador, é armazenado no atributo roteadores um dicionário, em que cada elemento desse dicionário segue a seguinte regra: a chave é o IP do roteador de destino, e o valor é outro dicionário que possui o custo e o próximo salto/(ip do próximo roteador até chegar no destino). Em `"RoutingTable"` é gerenciado todo o processo de retirada e adição dos roteadores que chegam pelas mensagens de atualização dos vizinhos, desde a retirada de caminhos para roteadores que expiraram até a adição de novos.
+
+### 4. Remoção de rotas Obsoletas
+Cada roteador vizinho que manda mensagens de atualização para um dado roteador possui um `"time.time()"` no dicionário `"last_update"` desse dado roteador que é atualizado para o horário corrente toda vez que chega uma mensagem de atualização do roteador vizinho, porém, caso o valor de tempo que aparece para o dado vizinho no dicionário `"last_update"` extrapolar o limite de 4 * período de tempo, a função `"_expire_routes"`, chamada a cada 4 * p no roteador, irá encontrá-lo e remover todos os caminhos apreendidos por esse vizinho da tabela de roteamento do roteador. Adicionalmente, nós removemos todos os caminhos que um dado vizinho ensinou a um roteador por meio de uma mensagem de atualização e que em outra mensagem posterior a essa não estavam mais entre caminhos para roteadores que o vizinho colocou na mensagem de atualização.
+
+### 5. Balanceamento de Carga (Ponto Extra)
 Quando múltiplos caminhos com custo mínimo estão disponíveis para um destino, todos são armazenados. Na escolha do próximo salto, um caminho aleatório entre os disponíveis é selecionado, promovendo o balanceamento natural do tráfego.
 
-### 4. Simulação de Trajeto (Trace)
-Comando `trace <ip>` permite visualizar o caminho até um destino com base na tabela de roteamento, útil para validar o funcionamento e a convergência da rede.
-
-### 5. Tratamento do Loop Infinito
-O custo para se chegar a um roteador não pode passar de **50**, visto que, baseando-se no livro apresentado pelo professor, foi necessário adotar essa medida para resolver o caso em que um roteador falha e seu custo é incrementado cada vez mais nos roteadores que recebem atualizações com o caminho para ele. 
-
+### 6. Simulação de Trajeto (Trace)
+Comando `"trace <ip>"` permite visualizar o caminho até um destino com base na tabela de roteamento, útil para validar o funcionamento e a convergência da rede.
+ 
+### 7. Tratamento do Loop Infinito
+O custo para se chegar a um roteador não pode passar de 50, visto que, baseando-se no livro apresentado pelo professor, foi necessário adotar essa medida para resolver o caso em que um roteador falha e seu custo é incrementado cada vez mais nos roteadores que recebem atualizações com o caminho para ele. 
 
 ---
 
